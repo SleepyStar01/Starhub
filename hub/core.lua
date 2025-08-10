@@ -1,110 +1,123 @@
--- StarHub UI Library Core
+-- StarHub UI Library Core (Fixed Version)
 -- GitHub: https://raw.githubusercontent.com/SleepyStar01/Starhub/main/hub/core.lua
 
 local StarHub = {}
-
--- Services
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local CoreGui = game:GetService("CoreGui")
 
--- Configuration
-StarHub.settings = {
-    Keybind = Enum.KeyCode.RightControl,
-    DefaultSize = UDim2.new(0, 600, 0, 400),
-    Theme = {
-        Background = Color3.fromRGB(19, 20, 24),
-        Header = Color3.fromRGB(30, 31, 38),
-        Accent = Color3.fromRGB(66, 89, 182)
-    }
-}
-
--- Notification system
-function StarHub:Notify(title, message, duration)
-    duration = duration or 3
-    print("[StarHub]", title, "-", message)
-    -- Can be enhanced with visual notifications
+-- Cleanup previous UI
+for _, obj in ipairs(CoreGui:GetChildren()) do
+    if obj.Name == "StarHubUI" then
+        obj:Destroy()
+    end
 end
 
--- Create main window
 function StarHub:CreateWindow(title)
-    -- Cleanup previous UI
-    self:DestroyUI()
-
     -- Main container
     local container = Instance.new("ScreenGui")
     container.Name = "StarHubUI"
     container.Parent = CoreGui
-    self.core = container
+    container.ZIndexBehavior = Enum.ZIndexBehavior.Global
 
     -- Main frame
     local mainFrame = Instance.new("Frame")
     mainFrame.Name = "MainFrame"
     mainFrame.Parent = container
     mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-    mainFrame.BackgroundColor3 = self.settings.Theme.Background
-    mainFrame.BackgroundTransparency = 0.05
-    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(25, 26, 32)
+    mainFrame.Size = UDim2.new(0, 600, 0, 400)
     mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     mainFrame.Visible = false
 
-    -- Add UI elements (header, tabs, etc.)
-    -- ... (rest of your UI implementation)
+    -- Header
+    local header = Instance.new("Frame")
+    header.Name = "Header"
+    header.Parent = mainFrame
+    header.BackgroundColor3 = Color3.fromRGB(35, 36, 42)
+    header.Size = UDim2.new(1, 0, 0, 30)
 
-    -- Window controls
-    function self:Open()
-        mainFrame.Visible = true
-        TweenService:Create(mainFrame, TweenInfo.new(0.3), {
-            Size = self.settings.DefaultSize
-        }):Play()
-    end
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Parent = header
+    titleLabel.Text = title
+    titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    titleLabel.Size = UDim2.new(1, -40, 1, 0)
+    titleLabel.Position = UDim2.new(0, 10, 0, 0)
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 
-    function self:Close()
-        TweenService:Create(mainFrame, TweenInfo.new(0.3), {
-            Size = UDim2.new(0, 0, 0, 0)
-        }):Play()
-        task.wait(0.3)
+    -- Close button (fixed click handler)
+    local closeBtn = Instance.new("TextButton")
+    closeBtn.Parent = header
+    closeBtn.Text = "X"
+    closeBtn.Size = UDim2.new(0, 30, 1, 0)
+    closeBtn.Position = UDim2.new(1, -30, 0, 0)
+    closeBtn.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+    closeBtn.MouseButton1Click:Connect(function()
         mainFrame.Visible = false
+    end)
+
+    -- Content area (fixed parenting)
+    local content = Instance.new("Frame")
+    content.Name = "Content"
+    content.Parent = mainFrame
+    content.BackgroundTransparency = 1
+    content.Size = UDim2.new(1, 0, 1, -30)
+    content.Position = UDim2.new(0, 0, 0, 30)
+
+    -- Tab system
+    local tabs = {}
+    
+    function self:AddTab(tabName)
+        local tabContent = Instance.new("ScrollingFrame")
+        tabContent.Parent = content
+        tabContent.Size = UDim2.new(1, 0, 1, 0)
+        tabContent.Visible = false
+        tabContent.Name = tabName.."Content"
+        tabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+
+        local tabButton = Instance.new("TextButton")
+        tabButton.Parent = header
+        tabButton.Text = tabName
+        tabButton.Size = UDim2.new(0, 80, 1, 0)
+        tabButton.Position = UDim2.new(0, 40 + (#tabs * 85), 0, 0)
+        
+        tabButton.MouseButton1Click:Connect(function()
+            for _, child in content:GetChildren() do
+                if child:IsA("ScrollingFrame") then
+                    child.Visible = false
+                end
+            end
+            tabContent.Visible = true
+        end)
+
+        table.insert(tabs, tabContent)
+
+        return {
+            Button = function(settings)
+                local btn = Instance.new("TextButton")
+                btn.Parent = tabContent
+                btn.Text = settings.Title
+                btn.Size = UDim2.new(1, -20, 0, 30)
+                btn.Position = UDim2.new(0, 10, 0, #tabContent:GetChildren() * 35)
+                btn.MouseButton1Click:Connect(function()
+                    pcall(settings.Callback) -- Safe execution
+                end)
+            end
+        }
     end
 
     -- Toggle visibility
     function self:Toggle()
-        if mainFrame.Visible then
-            self:Close()
-        else
-            self:Open()
-        end
+        mainFrame.Visible = not mainFrame.Visible
     end
 
-    -- Set up keybind
-    UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == self.settings.Keybind then
+    UserInputService.InputBegan:Connect(function(input)
+        if input.KeyCode == Enum.KeyCode.RightControl then
             self:Toggle()
         end
     end)
 
-    return {
-        AddTab = function(tabName)
-            -- Tab implementation
-            return {
-                Button = function(settings)
-                    -- Button implementation
-                end,
-                Toggle = function(settings)
-                    -- Toggle implementation
-                end
-                -- Add other controls as needed
-            }
-        end
-    }
-end
-
--- Cleanup function
-function StarHub:DestroyUI()
-    if self.core and self.core.Parent then
-        self.core:Destroy()
-    end
-    self.core = nil
+    return self
 end
 
 return StarHub
